@@ -1,26 +1,9 @@
 # sfdx-nix
 
-Simple Nix flake that provides the [SFDX CLI](https://developer.salesforce.com/tools/sfdxcli). You can use it like any other flake.
+A nix flake package for Salesforce `sf` cli, originally forked from [Ryan Faulhaber' repo](https://github.com/rfaulhaber/sfdx-nix)
 
-This project is in no way affiliated with Salesforce.
+It downloads code from Salesforce official cli and compile locally.
 
-This project's license only covers the code in this repository, and is licensed
-under the same license that the SFDX CLI itself is.
+It has a weekly [github action](./.github/workflows/update-version.yml) to bump up the cli version as a PR.
 
-## Usage
-
-I hope the usage should be self-explanatory. This flake can be used like any other flake. For example, within the CLI:
-
-```sh
-nix run github:rfaulhaber/sfdx-nix
-```
-
-is the same as just running `sf`. Similarly,
-
-``` sh
-nix shell github:rfaulhaber/sfdx-nix
-```
-
-will add the `sf` command to your environment.
-
-You can add it to a NixOS configuration like any other flake as well.
+I use it in my own nix controlled [dotfiles](https://github.com/xixiaofinland/dotfiles-nix/blob/eb829c7045279937232c503e0d108ab09453f9f8/flake.nix#L23)
