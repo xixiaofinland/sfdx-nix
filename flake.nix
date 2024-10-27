@@ -18,17 +18,17 @@
 
       sfPackage = let
         name = "salesforce-cli";
-        version = "2.64.2";
+        version = "2.65.4";
         src = pkgs.fetchFromGitHub {
           owner = "salesforcecli";
           repo = "cli";
           rev = version;
-          hash = "sha256-TSye4SueDTQ4ZhbrB9/NEApKOhz5RL7oX8gR7P2IB48=";
+          hash = "sha256-24wdtWSwp+aKTWXEsHA01+I+Mod9X1j35lu9MHMrqhg=";
         };
         lib = pkgs.lib;
         offlineCache = pkgs.fetchYarnDeps {
           yarnLock = "${src}/yarn.lock";
-          hash = "sha256-gvYCfjjrnFIDqETEQZxNQ0Pi7by2rjNB2l2idKyh1Is=";
+          hash = "sha256-w21a3gKcNEu45s8BJKivg/Ovt7lqnroNxRrg58hWoDc=";
         };
       in
         pkgs.stdenv.mkDerivation {
