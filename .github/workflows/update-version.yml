@@ -140,8 +140,12 @@ jobs:
     
     - name: Approve PR
       if: env.update_needed == 'true'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: gh pr review --approve $(gh pr list --state open --json number --jq '.[0].number')
-
+    
     - name: Merge PR
       if: env.update_needed == 'true'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: gh pr merge --auto --squash $(gh pr list --state open --json number --jq '.[0].number')
