@@ -140,4 +140,11 @@ jobs:
     
     # automatically merge the PR.
     - name: Auto merge PR
-      run: gh pr merge $(gh pr list --state open --json number --jq '.[0].number') --merge --delete-branch
+      run: |
+        pr_number=$(gh pr list --state open --label "auto-merge" --json number --jq '.[0].number')
+        if [ -n "$pr_number" ]; then
+          gh pr merge "$pr_number" --merge --delete-branch --auto
+        else
+          echo "No PR with auto-merge label found."
+        fi
+
