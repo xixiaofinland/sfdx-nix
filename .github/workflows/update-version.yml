@@ -1,13 +1,11 @@
 name: Catch up the latest version
 on:
   schedule:
-    - cron: '0 0 * * 0' # Runs weekly on Sunday at midnight UTC
+    - cron: '0 0 * * 0' # Runs weekly on Sunday at midnight UTC (fixed syntax)
   workflow_dispatch:
-
 permissions:
   contents: write
   pull-requests: write
-
 jobs:
   update-cli:
     runs-on: ubuntu-latest
@@ -93,15 +91,34 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
+        # Check if the branch already exists locally
+        branch_name="update-cli-$version"
+        exists_locally=$(git branch -a | grep -c "$branch_name" || true)
+        
+        # Check if the branch exists remotely
+        exists_remotely=$(git ls-remote --heads origin "$branch_name" | wc -l || true)
+        
+        # Delete the branch if it exists remotely
+        if [ "$exists_remotely" -gt 0 ]; then
+          echo "Branch $branch_name already exists remotely. Deleting it..."
+          git push origin --delete "$branch_name" || true
+        fi
+        
+        # Delete the branch if it exists locally 
+        if [ "$exists_locally" -gt 0 ]; then
+          echo "Branch $branch_name already exists locally. Checking out main and deleting it..."
+          git checkout main
+          git branch -D "$branch_name" || true
+        fi
+        
+        # Check for and close any open PRs
         existing_prs=$(gh pr list --state open --json number,title,headRefName --jq ".[] | select(.title | startswith(\"$PR_NAME_PREFIX\")) | {number: .number, branch: .headRefName}")
         if [ ! -z "$existing_prs" ]; then
-          echo "Closing existing PRs and deleting branches:"
+          echo "Closing existing PRs:"
           echo "$existing_prs" | while read -r pr; do
             number=$(echo $pr | jq -r '.number')
-            branch=$(echo $pr | jq -r '.branch')
-            echo "Closing PR #$number and deleting branch $branch"
+            echo "Closing PR #$number"
             gh pr close $number --comment "Closing in favor of a new update PR."
-            gh api -X DELETE repos/{owner}/{repo}/git/refs/heads/$branch
           done
         fi
     - name: Commit and create a PR
@@ -111,11 +128,19 @@ jobs:
       run: |
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        git checkout -b update-cli-$version
+        
+        # Create a new branch
+        branch_name="update-cli-$version"
+        git checkout -b "$branch_name"
+        
         git add flake.nix
         git commit -m "Update Salesforce CLI to $version"
-        git push origin update-cli-$version
-        gh pr create --title "$PR_NAME_PREFIX $version" --body "This PR updates the Salesforce CLI to version $version." --base main --head update-cli-$version
+        
+        # Push with force flag to overwrite any existing branch
+        git push -f origin "$branch_name"
+        
+        # Create PR
+        gh pr create --title "$PR_NAME_PREFIX $version" --body "This PR updates the Salesforce CLI to version $version." --base main --head "$branch_name" || echo "PR may already exist"
     
     # automatically merge the PR.
     - name: Auto merge PR
@@ -123,9 +148,13 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        pr_number=$(gh pr list --state open --json number --jq '.[0].number')
+        # Allow a little time for PR to be registered
+        sleep 5
+        
+        pr_number=$(gh pr list --state open --json number,headRefName --jq ".[] | select(.headRefName == \"update-cli-$version\") | .number")
         if [ -n "$pr_number" ]; then
+          echo "Merging PR #$pr_number"
           gh pr merge "$pr_number" --merge --delete-branch
         else
-          echo "No open PRs found."
+          echo "No open PR found with branch update-cli-$version"
         fi
