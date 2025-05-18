@@ -153,14 +153,55 @@ jobs:
         git push --force origin $BRANCH_NAME
         
         # Create PR from the new branch and capture PR number
-        PR_URL=$(gh pr create --title "$PR_NAME_PREFIX $version" --body "This PR updates the Salesforce CLI to version $version. This PR will be automatically merged once checks pass." --base main --head $BRANCH_NAME)
-        PR_NUMBER=$(echo $PR_URL | grep -o '[0-9]*$')
+        PR_URL=$(gh pr create --title "$PR_NAME_PREFIX $version" --body "This PR updates the Salesforce CLI to version $version." --base main --head $BRANCH_NAME)
+        PR_NUMBER=$(echo $PR_URL | grep -o '[0-9]*
+
+    - name: Wait for checks and merge PR
+      if: env.update_needed == 'true' && steps.create_pr.outputs.pr_number != ''
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        PR_NUMBER: ${{ steps.create_pr.outputs.pr_number }}
+      run: |
+        echo "Waiting for checks to complete on PR #$PR_NUMBER"
+        
+        # Wait for a maximum of 10 minutes (60 x 10 seconds)
+        for i in {1..60}; do
+          # Check if PR is still open
+          PR_STATE=$(gh pr view $PR_NUMBER --json state --jq .state)
+          
+          if [ "$PR_STATE" != "OPEN" ]; then
+            echo "PR #$PR_NUMBER is no longer open (state: $PR_STATE). Assuming it was merged or closed."
+            break
+          fi
+          
+          # Check if all checks have completed and are successful
+          CHECK_STATUS=$(gh pr checks $PR_NUMBER --json conclusion --jq '.conclusion' 2>/dev/null || echo "PENDING")
+          
+          if [ "$CHECK_STATUS" = "SUCCESS" ]; then
+            echo "All checks have completed successfully for PR #$PR_NUMBER. Attempting to merge..."
+            
+            # Try to merge the PR directly
+            gh pr merge $PR_NUMBER --merge && {
+              echo "Successfully merged PR #$PR_NUMBER"
+              break
+            } || echo "Could not merge PR #$PR_NUMBER automatically, manual intervention may be required"
+            break
+          elif [ "$CHECK_STATUS" != "PENDING" ] && [ "$CHECK_STATUS" != "" ]; then
+            echo "Checks completed with status: $CHECK_STATUS. PR may need manual review."
+            break
+          fi
+          
+          echo "Checks still pending for PR #$PR_NUMBER. Waiting 10 seconds... (Attempt $i/60)"
+          sleep 10
+        done
+        
+        echo "Completed waiting for PR #$PR_NUMBER")
         
         echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
         echo "Created PR #$PR_NUMBER: $PR_URL"
         
-        # Enable auto-merge for the PR
-        gh pr merge $PR_NUMBER --auto --merge
+        # Try to enable auto-merge, but don't fail if it's not available
+        gh pr merge $PR_NUMBER --auto --merge || echo "Auto-merge is not available, PR will need to be merged manually"
 
     - name: Wait for checks and auto-merge
       if: env.update_needed == 'true' && steps.create_pr.outputs.pr_number != ''
