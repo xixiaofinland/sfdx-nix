@@ -125,7 +125,8 @@ jobs:
             branch=$(echo $pr | jq -r '.branch')
             echo "Closing PR #$number and deleting branch $branch"
             gh pr close $number --comment "Closing in favor of a new update PR."
-            gh api -X DELETE repos/{owner}/{repo}/git/refs/heads/$branch
+            # Don't fail if branch deletion fails
+            gh api -X DELETE repos/{owner}/{repo}/git/refs/heads/$branch || echo "Warning: Failed to delete branch $branch, continuing anyway"
           done
         fi
 
@@ -136,8 +137,17 @@ jobs:
       run: |
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        git checkout -b update-cli-$version
+        
+        # Generate a unique branch name with timestamp to avoid conflicts
+        BRANCH_NAME="update-cli-$version-$(date +%s)"
+        echo "Using branch name: $BRANCH_NAME"
+        
+        git checkout -b $BRANCH_NAME
         git add flake.nix
         git commit -m "Update Salesforce CLI to $version"
-        git push origin update-cli-$version
-        gh pr create --title "$PR_NAME_PREFIX $version" --body "This PR updates the Salesforce CLI to version $version." --base main --head update-cli-$version
+        
+        # Force push since we want our changes to take precedence
+        git push --force origin $BRANCH_NAME
+        
+        # Create PR from the new branch
+        gh pr create --title "$PR_NAME_PREFIX $version" --body "This PR updates the Salesforce CLI to version $version." --base main --head $BRANCH_NAME
