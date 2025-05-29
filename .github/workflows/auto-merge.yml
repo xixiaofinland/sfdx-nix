@@ -1,0 +1,16 @@
+name: Auto Merge PRs
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+jobs:
+  automerge:
+    runs-on: ubuntu-latest
+    if: github.actor == 'github-actions[bot]' # Only auto-merge PRs created by GitHub Actions
+    steps:
+      - name: Enable Auto-Merge for PR
+        run: |
+          gh pr merge --auto --squash "$GITHUB_REF_NAME"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
