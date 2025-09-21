@@ -1,5 +1,5 @@
 {
-  description = "Nix flake that provides sfdx.";
+  description = "Nix flake that provides Salesforce CLI (sf)";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs";
@@ -12,77 +12,96 @@
     flake-utils,
   }:
     flake-utils.lib.eachDefaultSystem (system: let
-      pkgs = import nixpkgs {
-        inherit system;
-      };
+      pkgs = import nixpkgs {inherit system;};
 
-      sfPackage = let
-        name = "salesforce-cli";
+      salesforce-cli = pkgs.stdenv.mkDerivation rec {
+        pname = "salesforce-cli";
         version = "2.108.2";
+        
         src = pkgs.fetchFromGitHub {
           owner = "salesforcecli";
           repo = "cli";
           rev = version;
           hash = "sha256-EhuBSlSUo11QmDmTdcc7V2rVUHgVjsuoxxYt96jGqCI=";
         };
-        lib = pkgs.lib;
+
         offlineCache = pkgs.fetchYarnDeps {
           yarnLock = "${src}/yarn.lock";
           hash = "sha256-jgpNG1F4ZsB9oK3jBq6yFDBKpUmnScCVFzLp2lysMHE=";
         };
-      in
-        pkgs.stdenv.mkDerivation {
-          inherit version src;
-          pname = name;
-          nativeBuildInputs = with pkgs; [nodejs yarn prefetch-yarn-deps fixup-yarn-lock];
-          phases = ["unpackPhase" "configurePhase" "buildPhase" "installPhase" "distPhase"];
 
-          configurePhase = ''
-            export HOME=$PWD/yarn_home
-            yarn --offline config set yarn-offline-mirror ${offlineCache}
-          '';
+        nativeBuildInputs = with pkgs; [
+          nodejs 
+          yarn 
+          prefetch-yarn-deps 
+          fixup-yarn-lock
+        ];
 
-          buildPhase = ''
-            export HOME=$PWD/yarn_home
-            export SF_HIDE_RELEASE_NOTES=true
-            fixup-yarn-lock ./yarn.lock
-            chmod -R +rw $PWD/scripts
-            yarn --offline install --ignore-scripts
-            chmod -R +rw $PWD/node_modules
-            patchShebangs --build node_modules
-            yarn --offline --production=true run build
-          '';
+        configurePhase = ''
+          runHook preConfigure
+          export HOME=$TMPDIR/yarn_home
+          yarn --offline config set yarn-offline-mirror ${offlineCache}
+          runHook postConfigure
+        '';
 
-          installPhase = ''
-            mkdir $out
-            mv node_modules $out/
-            mv dist $out/
-            mkdir -p $out/bin
-            mv bin/run.js $out/bin/sf
-            # necessary for some runtime configuration
-            cp ./package.json $out
-            patchShebangs $out
-          '';
+        buildPhase = ''
+          runHook preBuild
+          export HOME=$TMPDIR/yarn_home
+          export SF_HIDE_RELEASE_NOTES=true
+          
+          fixup-yarn-lock ./yarn.lock
+          yarn --offline install --ignore-scripts --frozen-lockfile
+          patchShebangs --build node_modules scripts
+          yarn --offline run build
+          runHook postBuild
+        '';
 
-          distPhase = ''
-            mkdir -p $out/tarballs/
-            yarn pack --offline --ignore-scripts --production=true --filename $out/tarballs/sf/.tgz
-          '';
+        installPhase = ''
+          runHook preInstall
+          mkdir -p $out/lib/salesforce-cli $out/bin
+          
+          cp -r node_modules dist package.json $out/lib/salesforce-cli/
+          
+          # Create wrapper script
+          cat > $out/bin/sf << EOF
+          #!/bin/sh
+          exec ${pkgs.nodejs}/bin/node $out/lib/salesforce-cli/bin/run.js "\$@"
+          EOF
+          chmod +x $out/bin/sf
+          runHook postInstall
+        '';
+
+        meta = with pkgs.lib; {
+          description = "Salesforce CLI";
+          homepage = "https://github.com/salesforcecli/cli";
+          license = licenses.bsd3;
+          maintainers = [];
+          platforms = platforms.all;
         };
-    in {
-      packages = rec {
-        sf = sfPackage;
-        default = sf;
       };
-      apps = rec {
-        sf = flake-utils.lib.mkApp {
-          drv = self.packages.${system}.sf;
+    in {
+      packages = {
+        default = salesforce-cli;
+        sf = salesforce-cli;
+        salesforce-cli = salesforce-cli;
+      };
+      
+      apps = {
+        default = flake-utils.lib.mkApp {
+          drv = salesforce-cli;
           exePath = "/bin/sf";
         };
-        default = sf;
+        sf = flake-utils.lib.mkApp {
+          drv = salesforce-cli;
+          exePath = "/bin/sf";
+        };
       };
+      
       formatter = pkgs.alejandra;
-      devShells.default =
-        pkgs.mkShell {buildInputs = with pkgs; [nodejs yarn];};
+      
+      devShells.default = pkgs.mkShell {
+        buildInputs = with pkgs; [nodejs yarn];
+        packages = [salesforce-cli];
+      };
     });
 }
