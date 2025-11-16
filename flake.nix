@@ -50,7 +50,6 @@
           buildPhase = ''
             export HOME=$PWD/yarn_home
             export SF_HIDE_RELEASE_NOTES=true
-            fixup-yarn-lock ./yarn.lock
             chmod -R +rw $PWD/scripts
             yarn --offline install --ignore-scripts
             chmod -R +rw $PWD/node_modules
