@@ -34,12 +34,13 @@
         pkgs.stdenv.mkDerivation {
           inherit version src;
           pname = name;
-          nativeBuildInputs = [
+nativeBuildInputs = [
   pkgs.nodejs_20
-  pkgs.yarn
+  (pkgs.yarn.override { nodejs = pkgs.nodejs_20; })
   pkgs.prefetch-yarn-deps
   pkgs.fixup-yarn-lock
 ];
+
           phases = ["unpackPhase" "configurePhase" "buildPhase" "installPhase" "distPhase"];
 
 configurePhase = ''
