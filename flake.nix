@@ -1,11 +1,9 @@
 {
   description = "Nix flake that provides sfdx.";
-
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs";
     flake-utils.url = "github:numtide/flake-utils";
   };
-
   outputs = {
     self,
     nixpkgs,
@@ -15,7 +13,6 @@
       pkgs = import nixpkgs {
         inherit system;
       };
-
       sfPackage = let
         name = "salesforce-cli";
         version = "2.113.2";
@@ -35,22 +32,19 @@
           inherit version src;
           pname = name;
 nativeBuildInputs = [
-  pkgs.nodejs_20
-  (pkgs.yarn.override { nodejs = pkgs.nodejs_20; })
+  pkgs.nodejs_22
+  (pkgs.yarn.override { nodejs = pkgs.nodejs_22; })
   pkgs.prefetch-yarn-deps
   pkgs.fixup-yarn-lock
 ];
-
           phases = ["unpackPhase" "configurePhase" "buildPhase" "installPhase" "distPhase"];
-
 configurePhase = ''
-  export PATH="${pkgs.nodejs_20}/bin:${pkgs.yarn}/bin:$PATH"
+  export PATH="${pkgs.nodejs_22}/bin:${pkgs.yarn}/bin:$PATH"
   export HOME=$PWD/yarn_home
   yarn --offline config set yarn-offline-mirror ${offlineCache}
 '';
-
 buildPhase = ''
-  export PATH="${pkgs.nodejs_20}/bin:${pkgs.yarn}/bin:$PATH"
+  export PATH="${pkgs.nodejs_22}/bin:${pkgs.yarn}/bin:$PATH"
   export HOME=$PWD/yarn_home
   export SF_HIDE_RELEASE_NOTES=true
   chmod -R +rw $PWD/scripts
@@ -59,7 +53,6 @@ buildPhase = ''
   patchShebangs --build node_modules
   yarn --offline --production=true run build
 '';
-
           installPhase = ''
             mkdir $out
             mv node_modules $out/
@@ -70,7 +63,6 @@ buildPhase = ''
             cp ./package.json $out
             patchShebangs $out
           '';
-
           distPhase = ''
             mkdir -p $out/tarballs/
             yarn pack --offline --ignore-scripts --production=true --filename $out/tarballs/sf/.tgz
@@ -90,6 +82,6 @@ buildPhase = ''
       };
       formatter = pkgs.alejandra;
       devShells.default =
-        pkgs.mkShell {buildInputs = with pkgs; [nodejs yarn];};
+        pkgs.mkShell {buildInputs = with pkgs; [nodejs_22 yarn];};
     });
 }
