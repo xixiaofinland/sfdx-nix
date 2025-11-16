@@ -42,20 +42,22 @@
 ];
           phases = ["unpackPhase" "configurePhase" "buildPhase" "installPhase" "distPhase"];
 
-          configurePhase = ''
-            export HOME=$PWD/yarn_home
-            yarn --offline config set yarn-offline-mirror ${offlineCache}
-          '';
+configurePhase = ''
+  export PATH="${pkgs.nodejs_20}/bin:${pkgs.yarn}/bin:$PATH"
+  export HOME=$PWD/yarn_home
+  yarn --offline config set yarn-offline-mirror ${offlineCache}
+'';
 
-          buildPhase = ''
-            export HOME=$PWD/yarn_home
-            export SF_HIDE_RELEASE_NOTES=true
-            chmod -R +rw $PWD/scripts
-            yarn --offline install --ignore-scripts
-            chmod -R +rw $PWD/node_modules
-            patchShebangs --build node_modules
-            yarn --offline --production=true run build
-          '';
+buildPhase = ''
+  export PATH="${pkgs.nodejs_20}/bin:${pkgs.yarn}/bin:$PATH"
+  export HOME=$PWD/yarn_home
+  export SF_HIDE_RELEASE_NOTES=true
+  chmod -R +rw $PWD/scripts
+  yarn --offline install --ignore-scripts
+  chmod -R +rw $PWD/node_modules
+  patchShebangs --build node_modules
+  yarn --offline --production=true run build
+'';
 
           installPhase = ''
             mkdir $out
