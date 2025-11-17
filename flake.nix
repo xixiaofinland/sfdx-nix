@@ -45,7 +45,7 @@
             export SF_HIDE_RELEASE_NOTES=true
             fixup-yarn-lock ./yarn.lock
             chmod -R +rw $PWD/scripts
-            yarn --offline install --ignore-scripts
+            yarn --offline install --ignore-scripts --ignore-engines
             chmod -R +rw $PWD/node_modules
             patchShebangs --build node_modules
             yarn --offline --production=true run build
