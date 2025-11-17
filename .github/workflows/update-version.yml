@@ -14,12 +14,15 @@ jobs:
     steps:
     - name: Checkout the repository
       uses: actions/checkout@v4
+    
     - name: Set up Nix
       uses: cachix/install-nix-action@v27
       with:
         nix_path: nixpkgs=channel:nixos-unstable
+    
     - name: Install prefetch-yarn-deps
       run: nix-env -i prefetch-yarn-deps -f '<nixpkgs>'
+    
     - name: Get the latest version from the Salesforce CLI repo
       id: get_version
       run: |
@@ -29,6 +32,7 @@ jobs:
           exit 1
         fi
         echo "version=$latest_version" >> $GITHUB_ENV
+    
     - name: Get current version
       run: |
         current_version=$(grep 'version = ' flake.nix | sed -E 's/.*version = "([^"]+)".*/\1/')
@@ -44,6 +48,7 @@ jobs:
         else
           echo "update_needed=true" >> $GITHUB_ENV
         fi
+    
     - name: Fetch new hashes
       if: env.update_needed == 'true'
       run: |
@@ -75,17 +80,21 @@ jobs:
           echo "Failed to update flake.nix"
           exit 1
         fi
+    
     - name: Test result by installing
       if: env.update_needed == 'true'
       run: |
-        nix build
+        echo "Testing build with new version..."
+        nix build --print-build-logs
         nix shell --command sh -c "echo 'Installing the new version successfully.'"
+    
     - name: Push to Cachix
       if: env.update_needed == 'true'
       uses: cachix/cachix-action@v14
       with:
         name: sfdx-nix
         authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+    
     - name: Check for existing PRs, close them, and delete branches
       if: env.update_needed == 'true'
       env:
@@ -103,6 +112,7 @@ jobs:
             gh api -X DELETE repos/{owner}/{repo}/git/refs/heads/$branch || echo "Warning: Failed to delete branch $branch, continuing anyway"
           done
         fi
+    
     - name: Commit and create a PR
       if: env.update_needed == 'true'
       id: create_pr
@@ -119,11 +129,13 @@ jobs:
         git commit -m "Update Salesforce CLI to ${{ env.version }}"
         # Force push since we want our changes to take precedence
         git push --force origin $BRANCH_NAME
+        
         # Create PR from the new branch and capture the URL
         pr_url=$(gh pr create --title "$PR_NAME_PREFIX ${{ env.version }}" --body "This PR updates the Salesforce CLI to version ${{ env.version }}." --base main --head $BRANCH_NAME)
         # Extract PR number from URL
-        pr_number=$(echo $pr_url | grep -o '[0-9]\+$')
+        pr_number=$(echo $pr_url | grep -o '[0-9]\+)
         echo "pr_number=$pr_number" >> $GITHUB_OUTPUT
+    
     - name: Auto-merge Pull Request
       if: env.update_needed == 'true' && steps.create_pr.outputs.pr_number
       run: |
