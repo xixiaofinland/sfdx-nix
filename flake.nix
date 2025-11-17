@@ -15,17 +15,17 @@
       };
       sfPackage = let
         name = "salesforce-cli";
-        version = "2.113.2";
+        version = "2.114.3";
         src = pkgs.fetchFromGitHub {
           owner = "salesforcecli";
           repo = "cli";
           rev = version;
-          hash = "sha256-dT0XOfIYkKy4Rteg42/2ioI8AcdCLzF+6ZkUbnXtV0I=";
+          hash = "sha256-w1PxF5xVU9krhv8QVB0V3TLHAmpanNgABeAZRu6gtb8=";
         };
         lib = pkgs.lib;
         offlineCache = pkgs.fetchYarnDeps {
           yarnLock = "${src}/yarn.lock";
-          hash = "sha256-C81c31WVnNoX9AEN2fTZlbfUq46Yp/U6Bk4SmMhkAz4=";
+          hash = "sha256-HeI/MMnwL4QQUQeUVdWv+sbUwDCvKHEDwuy6mX+SrMo=";
         };
         # Pin to Node.js 22 to match Salesforce CLI requirements (v2.114.1+ uses Node 22)
         nodejs = pkgs.nodejs_22;
