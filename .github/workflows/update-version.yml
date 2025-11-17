@@ -129,11 +129,10 @@ jobs:
         git commit -m "Update Salesforce CLI to ${{ env.version }}"
         # Force push since we want our changes to take precedence
         git push --force origin $BRANCH_NAME
-        
         # Create PR from the new branch and capture the URL
         pr_url=$(gh pr create --title "$PR_NAME_PREFIX ${{ env.version }}" --body "This PR updates the Salesforce CLI to version ${{ env.version }}." --base main --head $BRANCH_NAME)
         # Extract PR number from URL
-        pr_number=$(echo $pr_url | grep -o '[0-9]\+)
+        pr_number=$(echo $pr_url | grep -o '[0-9]\+$')
         echo "pr_number=$pr_number" >> $GITHUB_OUTPUT
     
     - name: Auto-merge Pull Request
